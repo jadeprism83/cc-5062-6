@@ -1,0 +1,98 @@
+{
+  "schema": "selection-sample/v1",
+  "id": "repeat_spokes",
+  "title": "重复变换：十二辐条",
+  "description": "一根 6x54 辐条绕 (120,100) 每 30° 旋转复制，共 12 份；所有副本由同一原路径经 rotation_matrix 现场变换得到。辐条从半径 26 延伸到 80，内毂留空，互不重叠，总覆盖面积=12*6*54。",
+  "tags": [
+    "repeat",
+    "transform",
+    "rotation"
+  ],
+  "canvas": {
+    "width": 240,
+    "height": 200
+  },
+  "feather": 1.2,
+  "items": [
+    {
+      "id": "spoke",
+      "op": "union",
+      "path": {
+        "commands": [
+          [
+            "M",
+            [
+              117.0,
+              20.0
+            ]
+          ],
+          [
+            "L",
+            [
+              123.0,
+              20.0
+            ]
+          ],
+          [
+            "L",
+            [
+              123.0,
+              74.0
+            ]
+          ],
+          [
+            "L",
+            [
+              117.0,
+              74.0
+            ]
+          ],
+          [
+            "Z"
+          ]
+        ]
+      },
+      "repeat": {
+        "count": 12,
+        "center": [
+          120,
+          100
+        ],
+        "angle_start_deg": 0,
+        "angle_step_deg": 30
+      }
+    }
+  ],
+  "reference": {
+    "hard_mass": {
+      "expected": 3888.0,
+      "tol_abs": 3.0,
+      "basis": "12 * 6 * 54，旋转保面积且辐条互不重叠"
+    },
+    "rois": {
+      "empty_hub": {
+        "xyxy": [
+          112,
+          92,
+          128,
+          108
+        ],
+        "max_at_most": 1e-06,
+        "basis": "内半径 26 以内无辐条"
+      }
+    }
+  },
+  "provenance": {
+    "source": "hand-authored repeat-transform sheet",
+    "authoring_script": "examples/create_sample_assets.py",
+    "created": "2026-11-25",
+    "params": {
+      "count": 12,
+      "step_deg": 30,
+      "bar": [
+        6.0,
+        54.0
+      ]
+    }
+  }
+}

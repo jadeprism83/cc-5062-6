@@ -1,0 +1,32 @@
+{
+  "schema": "legacy-mask/v1",
+  "id": "old_page_hole7",
+  "kind": "legacy",
+  "title": "旧样册第 7 页：仅存 60x50 低清蒙版",
+  "description": "当年的导出链先做 4x 面积平均再按 0.5 阈值二值化；孔边 0.32px 细丝在低清块中峰值仅 0.04，阈值后为 0，矢量母形已佚。unrecoverable_rois 是当年编辑笔记留存的细丝走廊（低清坐标），标记程序只圈出不可恢复区域，不虚构其中形状。",
+  "canvas": {
+    "width": 60,
+    "height": 50
+  },
+  "mask_png": "old_page_hole7_mask.png",
+  "unrecoverable_rois": [
+    [
+      21,
+      24,
+      39,
+      26
+    ]
+  ],
+  "verification": {
+    "roi_ink_max_at_most": 1e-06,
+    "companion_vector_sample": "hole_filament",
+    "note": "现代伴随矢量样册仅用于交叉验证标记确实命中真实佚失特征，不参与旧页标记本身"
+  },
+  "provenance": {
+    "source": "simulated legacy page produced from hole_filament",
+    "authoring_script": "examples/create_sample_assets.py",
+    "created": "2026-11-25",
+    "vector_master": "lost",
+    "process": "4x box area downsample then coverage >= 0.5 binary"
+  }
+}

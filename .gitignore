@@ -23,3 +23,6 @@ __pycache__/
 *.log
 .env
 .env.*
+
+# GUI 套版/旧页按钮的瞬时回读产物；正式证据在 output/samplebook 构建结果中
+output/samplebook/gui_last/

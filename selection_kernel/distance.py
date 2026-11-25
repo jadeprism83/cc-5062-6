@@ -36,7 +36,7 @@ def polygon_signed_distance(polys: Sequence[np.ndarray], width: int, height: int
     dmin = np.full((height, width), np.inf, dtype=np.float64)
     for poly in polys:
         n = len(poly)
-        if n < 3:
+        if n < 2:
             continue
         for i in range(n):
             ax, ay = poly[i]

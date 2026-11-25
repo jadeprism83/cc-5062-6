@@ -1,0 +1,70 @@
+{
+  "schema": "selection-catalog/v1",
+  "updated": "2026-11-25",
+  "gui_entry": "python3 gui/browser_app.py  → 样册与套版标签",
+  "samples": [
+    {
+      "id": "hole_filament",
+      "kind": "selection",
+      "file": "outlines/hole_filament.json",
+      "title": "孔洞与孔边细丝",
+      "tags": [
+        "hole",
+        "filament",
+        "resolution",
+        "duotone"
+      ]
+    },
+    {
+      "id": "subpixel_lines",
+      "kind": "selection",
+      "file": "outlines/subpixel_lines.json",
+      "title": "亚像素细线家族",
+      "tags": [
+        "subpixel",
+        "edge-color"
+      ]
+    },
+    {
+      "id": "repeat_spokes",
+      "kind": "selection",
+      "file": "outlines/repeat_spokes.json",
+      "title": "重复变换：十二辐条",
+      "tags": [
+        "repeat",
+        "rotation"
+      ]
+    },
+    {
+      "id": "intersect_narrow",
+      "kind": "selection",
+      "file": "outlines/intersect_narrow.json",
+      "title": "相交轮廓与窄羽化",
+      "tags": [
+        "intersect",
+        "feather",
+        "edge-color"
+      ]
+    },
+    {
+      "id": "hole_still_life",
+      "kind": "project",
+      "file": "projects/hole_still_life.json",
+      "title": "孔洞细丝半透明绘画工程",
+      "tags": [
+        "painting",
+        "semi-transparent"
+      ]
+    },
+    {
+      "id": "old_page_hole7",
+      "kind": "legacy",
+      "file": "legacy/old_page_hole7.json",
+      "title": "旧样册第 7 页（低清蒙版）",
+      "tags": [
+        "legacy",
+        "unrecoverable"
+      ]
+    }
+  ]
+}

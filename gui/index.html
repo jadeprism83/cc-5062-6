@@ -62,6 +62,20 @@
     <div id="errorbar"></div>
 
     <fieldset>
+      <legend>0. 精细选区样册资源（入库素材）</legend>
+      <label>选择样册素材</label>
+      <select id="samplePick"></select>
+      <button class="primary" id="loadSample">载入选材到绘画窗口</button>
+      <div class="row" style="margin-top:8px">
+        <button id="plateBtn">双色套版校样 / 油墨回读</button>
+        <button id="legacyBtn">旧页不可恢复标记</button>
+      </div>
+      <div class="hint">素材从 <code>selection_samples/</code> 的原路径 JSON
+        经真实内核重建；载入后仍可拖选追加区域、调节羽化，预览与边缘全部实时重算。</div>
+      <div id="sampleMeta" class="hint"></div>
+    </fieldset>
+
+    <fieldset>
       <legend>1. 画布坐标域</legend>
       <div class="row">
         <div><label>宽 W（图像像素）</label><input id="cw" type="number" value="240" min="8" max="2000"></div>
@@ -131,6 +145,7 @@
     <div class="tabs">
       <button data-tab="select" class="active">选区结果</button>
       <button data-tab="edge">亚像素边缘</button>
+      <button data-tab="book">样册 / 套版 / 旧页</button>
       <button data-tab="paint">绘画/棋盘底</button>
       <button data-tab="cut">剪切所有权对比</button>
     </div>
@@ -149,6 +164,31 @@
         <div class="card"><h3>仅软边像素（0 &lt; c &lt; 1，红色）</h3><img id="imgEdge" alt="edge"></div>
       </div>
       <div class="stat" id="edgeStats"></div>
+    </div>
+
+    <div id="tab-book" class="tabpane" style="display:none">
+      <div class="card" style="margin-bottom:12px">
+        <h3>样册工程：双色套版校样与实际油墨回读</h3>
+        <div class="grid2">
+          <div><div class="hint">A 版油墨（朱红，灰度=实际油墨覆盖）</div>
+            <img id="imgPlateA" alt="plate A"></div>
+          <div><div class="hint">B 版油墨（靛蓝）</div>
+            <img id="imgPlateB" alt="plate B"></div>
+          <div style="grid-column:1/-1"><div class="hint">两版套印校样（减法叠印）</div>
+            <img id="imgProof" alt="overprint proof" style="max-width:520px"></div>
+        </div>
+        <div class="stat" id="plateStats">选择 hole_filament 素材后点击“双色套版校样 / 油墨回读”。</div>
+      </div>
+      <div class="card">
+        <h3>旧页：仅存低清蒙版时的不可恢复部分</h3>
+        <div class="grid2">
+          <div><div class="hint">旧页低清蒙版最近邻放大（真实 PNG 读入）</div>
+            <img id="imgLegacyMask" alt="legacy mask"></div>
+          <div><div class="hint">红色斜线区=不可恢复的佚失细丝走廊</div>
+            <img id="imgLegacyMarked" alt="legacy marked"></div>
+        </div>
+        <div class="stat" id="legacyStats">点击“旧页不可恢复标记”执行。</div>
+      </div>
     </div>
 
     <div id="tab-paint" class="tabpane" style="display:none">
@@ -219,7 +259,10 @@ function renderShapeList() {
   shapes.forEach((s, i) => {
     const div = document.createElement("div");
     div.className = "shape-item";
-    div.innerHTML = `<span class="meta">#${i + 1} ${s.shape} (${s.x.toFixed(1)},${s.y.toFixed(1)}) ${s.w.toFixed(1)}×${s.h.toFixed(1)}</span>`;
+    const meta = s.shape === "path"
+      ? `#${i + 1} 矢量路径${s.label ? "「" + s.label + "」" : ""} · ${(s.path.commands || []).length} 段`
+      : `#${i + 1} ${s.shape} (${s.x.toFixed(1)},${s.y.toFixed(1)}) ${s.w.toFixed(1)}×${s.h.toFixed(1)}`;
+    div.innerHTML = `<span class="meta">${meta}</span>`;
     const op = document.createElement("select");
     ["union", "subtract", "intersect", "xor"].forEach(v => {
       const o = document.createElement("option"); o.value = v; o.textContent = v;
@@ -373,14 +416,110 @@ $("exportPaint").onclick = () => {
 };
 
 document.querySelectorAll(".tabs button").forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    document.querySelectorAll(".tabpane").forEach(p => p.style.display = "none");
-    $( "tab-" + btn.dataset.tab).style.display = "block";
-  };
+  btn.onclick = () => activateTab(btn.dataset.tab);
 });
 
+function activateTab(name) {
+  document.querySelectorAll(".tabs button").forEach(b =>
+    b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll(".tabpane").forEach(p => p.style.display = "none");
+  $("tab-" + name).style.display = "block";
+}
+
+async function loadCatalog() {
+  try {
+    const r = await fetch("/api/samples");
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error);
+    const sel = $("samplePick");
+    sel.innerHTML = "";
+    data.catalog.samples.forEach(e => {
+      const o = document.createElement("option");
+      o.value = e.id;
+      o.textContent = `[${e.kind}] ${e.title}（${e.id}）`;
+      sel.appendChild(o);
+    });
+  } catch (err) { showError("样册目录载入失败：" + err.message); }
+}
+
+$("loadSample").onclick = async () => {
+  const id = $("samplePick").value;
+  const data = await fetch("/api/sample?id=" + encodeURIComponent(id))
+    .then(r => r.json());
+  if (!data.ok) { showError(data.error); return; }
+  const spec = data.spec;
+  const tags = (spec.tags || []).join(" / ");
+
+  if (data.load_kind === "legacy") {
+    // 旧页没有矢量母形：不伪造可拖选 shapes，只引导到旧页标记。
+    $("sampleMeta").innerHTML =
+      `<b>${spec.title}</b><br>${spec.description || ""}<br>` +
+      `<span class="pill">低清旧页 · 矢量母形已佚 · 不可恢复区已标出</span>`;
+    setStatus("旧页只有低清蒙版，无法载入为可编辑选区；已切到样册页标记佚失区");
+    await $("legacyBtn").onclick();
+    return;
+  }
+
+  $("cw").value = spec.canvas.width;
+  $("ch").value = spec.canvas.height;
+  if (typeof spec.feather === "number") {
+    $("feather").value = spec.feather;
+    $("featherVal").textContent = spec.feather.toFixed(2);
+  }
+  shapes = data.shapes.map(s => ({ ...s }));
+  renderShapeList();
+  syncCanvases();
+  await renderSelection();
+  activateTab("select");
+  const kindNote = data.load_kind === "project"
+    ? `<br><span class="pill">绘画工程：选区来自 ${spec.selection_sample}，` +
+      `图层笔画由 examples/build_samplebook.py 按参数重建；你也可以直接在画布拖笔画。</span>`
+    : "";
+  $("sampleMeta").innerHTML =
+    `<b>${spec.title}</b><br>${spec.description || ""}<br>` +
+    `<span class="pill">${tags}</span>${kindNote}`;
+  setStatus(data.load_kind === "project"
+    ? "已载入绘画工程的伴随选区（真实内核重建）"
+    : "已从入库原路径重建样册：" + id);
+};
+
+$("plateBtn").onclick = async () => {
+  const id = $("samplePick").value;
+  let data;
+  try {
+    data = await postJSON("/api/sample_plates", { id });
+  } catch (e) { return; }
+  $("imgPlateA").src = "data:image/png;base64," + data.plate_a_png;
+  $("imgPlateB").src = "data:image/png;base64," + data.plate_b_png;
+  $("imgProof").src = "data:image/png;base64," + data.proof_png;
+  const rb = data.readback, r4 = data.readback_4x;
+  $("plateStats").innerHTML =
+    `母版实际油墨回读（写盘后重新读取 ${data.a_path}）：细丝峰值 ` +
+    `<b>${rb.filament.max.toFixed(3)}</b>，空孔 max=` +
+    `<b>${rb.hole.max.toExponential(1)}</b>，` +
+    `细丝存在=${rb.filament_present}，空孔为空=${rb.hole_empty}<br>` +
+    `换 4x 矢量重 raster 版后：细丝峰值 <b>${r4.filament.max.toFixed(3)}</b>，` +
+    `空孔 max=<b>${r4.hole.max.toExponential(1)}</b>，结论 ` +
+    `<b style="color:var(--ok)">${r4.pass ? "PASS" : "FAIL"}</b>`;
+  activateTab("book");
+  setStatus("双色套版校样与油墨回读完成");
+};
+
+$("legacyBtn").onclick = async () => {
+  const data = await postJSON("/api/legacy_mark",
+    { id: $("samplePick").value.startsWith("old_page")
+        ? $("samplePick").value : "old_page_hole7" });
+  $("imgLegacyMask").src = "data:image/png;base64," + data.mask_up_png;
+  $("imgLegacyMarked").src = "data:image/png;base64," + data.marked_png;
+  $("legacyStats").innerHTML =
+    `真实旧页文件 ${data.source_png}；佚失 ROI 内油墨 max=` +
+    `<b>${data.roi_ink.max.toExponential(1)}</b>（容差 ${data.roi_max_tol}）。` +
+    `红色区域内的亚像素形状在低清化+阈值化时已永久丢失，标记不虚构其内容。`;
+  activateTab("book");
+  setStatus("旧页不可恢复区域已标记");
+};
+
+loadCatalog();
 syncCanvases();
 renderSelection();
 </script>

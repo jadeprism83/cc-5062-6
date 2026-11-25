@@ -18,6 +18,10 @@ from .selection import Selection, SelectionDocument, FLATTEN_TOL
 from .painting import Canvas, Layer, brush_stamp_coverage, paint_brush, cut_with_selection, checkerboard, composite_over_checker, ownership_difference
 from .tiling import tiled_render, assert_tile_consistency
 from . import export
+from . import pathio
+from . import visualize
+from . import samplebook
+from . import plates
 
 __all__ = [
     "Path", "SubPath", "circle_path", "rectangle_path", "slanted_path",
@@ -30,5 +34,5 @@ __all__ = [
     "cut_with_selection", "checkerboard", "composite_over_checker",
     "ownership_difference",
     "tiled_render", "assert_tile_consistency",
-    "export",
+    "export", "pathio", "visualize", "samplebook", "plates",
 ]

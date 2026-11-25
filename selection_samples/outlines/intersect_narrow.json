@@ -1,0 +1,186 @@
+{
+  "schema": "selection-sample/v1",
+  "id": "intersect_narrow",
+  "title": "相交轮廓与窄羽化",
+  "description": "两个带分数坐标边的矩形做 intersect(c=a*b)，交集是边边精确的27.95x92 矩形；0.8px 窄羽化只沿组合结果的真实边界展开（edge-aware 边界段筛选排除了落在交集外的轮廓边，无假光晕）。四个边缘探针给出精确覆盖率与边缘 PNG 颜色约定。",
+  "tags": [
+    "intersect",
+    "narrow-feather",
+    "edge-color"
+  ],
+  "canvas": {
+    "width": 240,
+    "height": 200
+  },
+  "feather": 0.8,
+  "items": [
+    {
+      "id": "a",
+      "op": "union",
+      "path": {
+        "commands": [
+          [
+            "M",
+            [
+              36.35,
+              36.6
+            ]
+          ],
+          [
+            "L",
+            [
+              120.35,
+              36.6
+            ]
+          ],
+          [
+            "L",
+            [
+              120.35,
+              164.6
+            ]
+          ],
+          [
+            "L",
+            [
+              36.35,
+              164.6
+            ]
+          ],
+          [
+            "Z"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "b",
+      "op": "intersect",
+      "path": {
+        "commands": [
+          [
+            "M",
+            [
+              92.4,
+              58.25
+            ]
+          ],
+          [
+            "L",
+            [
+              202.4,
+              58.25
+            ]
+          ],
+          [
+            "L",
+            [
+              202.4,
+              150.25
+            ]
+          ],
+          [
+            "L",
+            [
+              92.4,
+              150.25
+            ]
+          ],
+          [
+            "Z"
+          ]
+        ]
+      }
+    }
+  ],
+  "reference": {
+    "hard_mass": {
+      "expected": 2571.4,
+      "tol_abs": 0.2,
+      "basis": "交集宽 120.35-92.4=27.95，高 150.25-58.25=92.0"
+    },
+    "edge_pixels": [
+      {
+        "pixel": [
+          92,
+          100
+        ],
+        "expected_hard": 0.6,
+        "tol": 0.01,
+        "expect_rgb": [
+          153,
+          0,
+          0,
+          255
+        ],
+        "why": "左边界 x=92.4，第 92 列覆盖 0.6"
+      },
+      {
+        "pixel": [
+          120,
+          100
+        ],
+        "expected_hard": 0.35,
+        "tol": 0.01,
+        "expect_rgb": [
+          89,
+          0,
+          0,
+          255
+        ],
+        "why": "右边界 x=120.35，第 120 列覆盖 0.35"
+      },
+      {
+        "pixel": [
+          105,
+          58
+        ],
+        "expected_hard": 0.75,
+        "tol": 0.01,
+        "expect_rgb": [
+          191,
+          0,
+          0,
+          255
+        ],
+        "why": "上边界 y=58.25，第 58 行覆盖 0.75"
+      },
+      {
+        "pixel": [
+          105,
+          150
+        ],
+        "expected_hard": 0.25,
+        "tol": 0.01,
+        "expect_rgb": [
+          64,
+          0,
+          0,
+          255
+        ],
+        "why": "下边界 y=150.25，第 150 行覆盖 0.25"
+      }
+    ],
+    "feather_checks": {
+      "radius": 0.8,
+      "center_pixel": [
+        105,
+        100
+      ],
+      "center_min": 0.999,
+      "ghost_edge_roi": [
+        118,
+        42,
+        123,
+        50
+      ],
+      "ghost_edge_max_at_most": 0.02,
+      "basis": "该 ROI 贴着 A 矩形位于交集上方的废边；edge-aware 羽化在该处必须为 0"
+    }
+  },
+  "provenance": {
+    "source": "hand-authored intersection edge-color sheet",
+    "authoring_script": "examples/create_sample_assets.py",
+    "created": "2026-11-25"
+  }
+}

@@ -20,6 +20,7 @@ import os
 import sys
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse
 
 import numpy as np
 from PIL import Image
@@ -35,76 +36,52 @@ from selection_kernel.distance import (  # noqa: E402
     feather_from_distance, polygon_signed_distance,
 )
 from selection_kernel.rasterize import rasterize_paths  # noqa: E402
+from selection_kernel import samplebook  # noqa: E402
+from selection_kernel import visualize  # noqa: E402
+from selection_kernel.plates import (  # noqa: E402
+    INK_COLORS, load_plate_ink, overprint_proof, save_plate_ink_png,
+    verify_filament_and_hole,
+)
 
 HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+GUI_LAST_DIR = os.path.join(REPO_ROOT, "output", "samplebook", "gui_last")
 
-SHAPE_BUILDERS = {
-    "circle": lambda x, y, w, h: circle_path(x + w / 2, y + h / 2,
-                                             min(w, h) / 2),
-    "rectangle": lambda x, y, w, h: rectangle_path(x, y, w, h),
-    "slanted": lambda x, y, w, h: slanted_path(x, y, w, h, shear=0.25 * w),
-    "slit": lambda x, y, w, h: thin_slit_path(x + w / 2, y + h / 2,
-                                              max(0.2, min(0.6, 0.04 * w)), h),
-}
+SHAPE_BUILDERS = samplebook.PRIMITIVE_BUILDERS
 
 
 def _png_b64(arr_uint8: np.ndarray, mode: str) -> str:
-    img = Image.fromarray(arr_uint8, mode=mode)
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return base64.b64encode(buf.getvalue()).decode("ascii")
+    return visualize.png_b64(arr_uint8, mode)
 
 
 def _coverage_rgba(coverage: np.ndarray) -> np.ndarray:
     """把 float 覆盖率编码为灰度 RGBA（保留软边层次，不做阈值化）。"""
-    u8 = np.round(np.clip(coverage, 0, 1) * 255).astype(np.uint8)
-    rgba = np.zeros((*u8.shape, 4), dtype=np.uint8)
-    rgba[..., 0] = rgba[..., 1] = rgba[..., 2] = u8
-    rgba[..., 3] = 255
-    return rgba
+    return visualize.coverage_gray_rgba(coverage)
 
 
 def _edge_rgba(coverage: np.ndarray) -> np.ndarray:
     """边缘视图：只显示 0<c<1 的亚像素软边，红色越亮覆盖越高。"""
-    soft = ((coverage > 0.0) & (coverage < 1.0)).astype(np.uint8)
-    rgba = np.zeros((*coverage.shape, 4), dtype=np.uint8)
-    vals = np.round(np.clip(coverage, 0, 1) * 255).astype(np.uint8)
-    rgba[..., 0] = np.where(soft, vals, 0)
-    rgba[..., 3] = np.where(soft, 255, 0)
-    return rgba
+    return visualize.edge_color_rgba(coverage)
 
 
 def build_selection(payload: dict):
-    """根据前端请求构造组合后的硬边与羽化覆盖率。"""
+    """根据前端请求构造组合后的硬边与羽化覆盖率。
+
+    拖选基元与样册矢量 path 项都在这里进入 samplebook.compose_shapes
+    这一真实内核入口；界面不存在任何固定覆盖率数据。
+    """
     h = int(payload["height"])
     w = int(payload["width"])
     feather = float(payload.get("feather", 0.0))
+    shapes = payload["shapes"]
     if feather < 0 or feather > min(h, w):
         raise ValueError(f"feather radius out of range: {feather}")
-    shapes = payload["shapes"]
     if not shapes:
-        return (np.zeros((h, w), np.float32),
-                np.zeros((h, w), np.float32), [])
-
-    doc = SelectionDocument((h, w))
-    all_polys = []
-    for idx, sp in enumerate(shapes):
-        kind = sp["shape"]
-        x, y = float(sp["x"]), float(sp["y"])
-        sw, sh = float(sp["w"]), float(sp["h"])
-        if sw <= 0 or sh <= 0:
-            raise ValueError("shape must have positive width and height")
-        path = SHAPE_BUILDERS[kind](x, y, sw, sh)
-        op = sp.get("op", CombineOp.UNION)
-        sel = Selection(f"s{idx}", (h, w), [path])
-        doc.add(sel)
-        all_polys.extend(path.flattened())
-
-    ops = [CombineOp(sp.get("op", CombineOp.UNION)) for sp in shapes[1:]]
-    hard = doc.combined(ops).coverage
-    sdf = polygon_signed_distance(all_polys, w, h, hard_cover=hard)
-    feathered = feather_from_distance(sdf, feather, hard_cover=hard)
-    return hard, feathered, all_polys
+        zero = np.zeros((h, w), np.float32)
+        return zero, zero, []
+    edge_aware = bool(payload.get("edge_aware", True))
+    result = samplebook.compose_shapes(shapes, h, w, feather, edge_aware)
+    return result.hard.coverage, result.coverage, result.polys
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -122,7 +99,9 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        if self.path in ("/", "/index.html"):
+        parsed = urlparse(self.path)
+        route = parsed.path
+        if route in ("/", "/index.html"):
             with open(HTML_PATH, "rb") as f:
                 body = f.read()
             self.send_response(200)
@@ -130,8 +109,43 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+        elif route == "/api/samples":
+            self._send_json({"ok": True, "catalog": samplebook.catalog()})
+        elif route == "/api/sample":
+            from urllib.parse import parse_qs
+            q = parse_qs(parsed.query)
+            sid = q.get("id", [""])[0]
+            spec = samplebook.load_sample(sid)
+            kind = spec.get("kind", "selection")
+            if "items" in spec:
+                shapes = self._sample_gui_shapes(spec)
+                load_kind = kind
+            elif spec.get("selection_sample"):
+                # 绘画工程：画布上的选区来自伴随的矢量样册，采用工程羽化。
+                companion = samplebook.load_sample(spec["selection_sample"])
+                shapes = self._sample_gui_shapes(companion)
+                load_kind = "project"
+            else:
+                # legacy 只有低清蒙版，没有可载入的矢量 shapes。
+                shapes = []
+                load_kind = "legacy"
+            self._send_json({"ok": True, "spec": spec, "shapes": shapes,
+                             "load_kind": load_kind})
         else:
             self._send_json({"ok": False, "error": "not found"}, 404)
+
+    @staticmethod
+    def _sample_gui_shapes(spec: dict):
+        """把 repeat 展开后的样册项转成前端 shape 对象（保留矢量 path）。"""
+        shapes = []
+        for it in samplebook.expanded_items(spec):
+            shapes.append({
+                "shape": "path",
+                "op": it.get("op", "union"),
+                "path": it["path"],
+                "label": it.get("id", "path"),
+            })
+        return shapes
 
     def do_POST(self):
         try:
@@ -146,6 +160,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._handle_cut(payload)
             elif route == "/api/tiles":
                 self._handle_tiles(payload)
+            elif route == "/api/sample_plates":
+                self._handle_sample_plates(payload)
+            elif route == "/api/legacy_mark":
+                self._handle_legacy_mark(payload)
             else:
                 self._send_json({"ok": False, "error": "unknown route"}, 404)
         except Exception as exc:  # 失败反馈回界面
@@ -244,6 +262,82 @@ class Handler(BaseHTTPRequestHandler):
         self._send_json({"ok": True,
                          "tile_hard_maxdiff": err_hard,
                          "tile_feather_maxdiff": err_feather})
+
+    def _handle_sample_plates(self, payload):
+        """样册 -> 双色套版：真实写印版 PNG，再从文件读回油墨核验。"""
+        sid = str(payload.get("id", "hole_filament"))
+        spec = samplebook.load_sample(sid)
+        recipe = spec.get("plates")
+        if not recipe:
+            raise ValueError(f"sample {sid!r} has no two-color plate recipe")
+        os.makedirs(GUI_LAST_DIR, exist_ok=True)
+        h = int(spec["canvas"]["height"])
+        w = int(spec["canvas"]["width"])
+
+        plate_a = samplebook.compose_spec(spec).hard.coverage
+        plate_b = samplebook.compose_recipe(
+            recipe["plate_b"]["items"], h, w).hard.coverage
+        a_path = os.path.join(GUI_LAST_DIR, f"{sid}_plate_A.png")
+        b_path = os.path.join(GUI_LAST_DIR, f"{sid}_plate_B.png")
+        save_plate_ink_png(plate_a, a_path)
+        save_plate_ink_png(plate_b, b_path)
+        proof = overprint_proof([
+            (plate_a, INK_COLORS[recipe["plate_a"]["ink"]]),
+            (plate_b, INK_COLORS[recipe["plate_b"]["ink"]]),
+        ])
+        proof_u8 = np.round(proof * 255).astype(np.uint8)
+
+        ink_a = load_plate_ink(a_path)  # 从实际文件读回
+        readback = verify_filament_and_hole(
+            ink_a, recipe["filament_roi"], recipe["hole_roi"])
+
+        s = 4  # 换版：4x 矢量母形重新光栅化
+        a4 = samplebook.compose_spec(spec, scale=s).hard.coverage
+        a4_path = os.path.join(GUI_LAST_DIR, f"{sid}_plate_A_4x.png")
+        save_plate_ink_png(a4, a4_path)
+        readback4 = verify_filament_and_hole(
+            load_plate_ink(a4_path), recipe["filament_roi"],
+            recipe["hole_roi"], scale=s, filament_peak_min=0.5)
+
+        self._send_json({
+            "ok": True, "id": sid,
+            "plate_a_png": _png_b64(
+                np.round(plate_a * 255).astype(np.uint8), "L"),
+            "plate_b_png": _png_b64(
+                np.round(plate_b * 255).astype(np.uint8), "L"),
+            "proof_png": _png_b64(proof_u8, "RGB"),
+            "readback": readback,
+            "readback_4x": readback4,
+            "a_path": os.path.relpath(a_path, REPO_ROOT),
+        })
+
+    def _handle_legacy_mark(self, payload):
+        """旧页：从入库的真实低清蒙版 PNG 读入并圈出不可恢复 ROI。"""
+        sid = str(payload.get("id", "old_page_hole7"))
+        record, record_path = samplebook.load_entry(sid)
+        if record.get("kind") != "legacy":
+            raise ValueError(f"{sid!r} is not a legacy mask entry")
+        mask = samplebook.load_legacy_mask(record, record_path)
+        rois = record["unrecoverable_rois"]
+        roi = samplebook.roi_stats(mask, rois[0])
+        marked = samplebook.mark_unrecoverable(mask, rois, upscale=4)
+        os.makedirs(GUI_LAST_DIR, exist_ok=True)
+        marked_path = os.path.join(GUI_LAST_DIR, f"{sid}_marked.png")
+        Image.fromarray(marked, "RGB").save(marked_path)
+        up = np.round(np.repeat(np.repeat(mask, 4, 0), 4, 1) * 255
+                       ).astype(np.uint8)
+        self._send_json({
+            "ok": True, "id": sid,
+            "source_png": os.path.relpath(
+                samplebook.legacy_mask_path(record, record_path),
+                REPO_ROOT),
+            "mask_up_png": _png_b64(up, "L"),
+            "marked_png": _png_b64(marked, "RGB"),
+            "roi_ink": roi,
+            "roi_max_tol": record.get("verification", {})
+            .get("roi_ink_max_at_most", 1e-6),
+            "provenance": record.get("provenance", {}),
+        })
 
 
 def main() -> int:

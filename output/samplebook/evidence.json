@@ -1,0 +1,594 @@
+{
+  "schema": "samplebook-evidence/v1",
+  "sample_dir": "selection_samples",
+  "samples": {
+    "hole_filament": {
+      "id": "hole_filament",
+      "title": "孔洞与孔边细丝",
+      "checks": [],
+      "hard_mass": {
+        "measured": 19684.111328125,
+        "expected": 19685.1106,
+        "abs_diff": 0.9992718749999767,
+        "tol_abs": 1.5,
+        "pass": true,
+        "basis": "180*140 - pi*42^2 + 84*0.32；细丝端点与孔缘抗锯齿覆盖按 c=a(1-b) 相乘，约 1px^2 偏差计入容差"
+      },
+      "rois": {
+        "filament_corridor": {
+          "max": 0.1599999964237213,
+          "mean": 0.15999998152256012,
+          "sum": 23.039997100830078,
+          "pixels": 144,
+          "pass": true,
+          "convention": {
+            "max_min": 0.159,
+            "sum_expected": 23.04,
+            "sum_tol": 0.2,
+            "basis": "0.32px 宽居中 y=100，分占 99/100 两行各 0.16"
+          },
+          "xyxy": [
+            84,
+            99,
+            156,
+            101
+          ]
+        },
+        "hole_empty": {
+          "max": 0.0,
+          "mean": 0.0,
+          "sum": 0.0,
+          "pixels": 640,
+          "pass": true,
+          "convention": {
+            "max_at_most": 1e-06,
+            "basis": "圆孔深处、细丝上方，几何上完全在洞内"
+          },
+          "xyxy": [
+            104,
+            66,
+            136,
+            86
+          ]
+        }
+      },
+      "files": {
+        "hard_u16": "output/samplebook/hole_filament_hard_u16.png",
+        "feather_u16": "output/samplebook/hole_filament_feather_u16.png",
+        "edge_hard": "output/samplebook/hole_filament_edge_hard.png",
+        "edge_feather": "output/samplebook/hole_filament_edge_feather.png"
+      },
+      "pass": true,
+      "canvas": [
+        240,
+        200
+      ]
+    },
+    "subpixel_lines": {
+      "id": "subpixel_lines",
+      "title": "亚像素细线家族",
+      "checks": [],
+      "hard_mass": {
+        "measured": 326.75,
+        "expected": 326.75,
+        "abs_diff": 0.0,
+        "tol_abs": 0.5,
+        "pass": true,
+        "basis": "各细线 w*h 之和，互不相交，union 即面积和"
+      },
+      "hard_max": {
+        "measured": 0.5,
+        "below": 0.76,
+        "pass": true
+      },
+      "edge_pixels": [
+        {
+          "pixel": [
+            50,
+            39
+          ],
+          "measured_hard": 0.125,
+          "expected_hard": 0.125,
+          "coverage_pass": true,
+          "edge_png": "output/samplebook/subpixel_lines_edge_hard.png",
+          "actual_rgba": [
+            32,
+            0,
+            0,
+            255
+          ],
+          "expected_rgba": [
+            32,
+            0,
+            0,
+            255
+          ],
+          "color_max_err": 0,
+          "color_pass": true,
+          "why": "y=39.875 的 0.25 线，第 39 行覆盖 0.125"
+        },
+        {
+          "pixel": [
+            50,
+            70
+          ],
+          "measured_hard": 0.5,
+          "expected_hard": 0.5,
+          "coverage_pass": true,
+          "edge_png": "output/samplebook/subpixel_lines_edge_hard.png",
+          "actual_rgba": [
+            128,
+            0,
+            0,
+            255
+          ],
+          "expected_rgba": [
+            128,
+            0,
+            0,
+            255
+          ],
+          "color_max_err": 0,
+          "color_pass": true,
+          "why": "y=70 起 0.5 高，第 70 行覆盖 0.5"
+        },
+        {
+          "pixel": [
+            50,
+            99
+          ],
+          "measured_hard": 0.375,
+          "expected_hard": 0.375,
+          "coverage_pass": true,
+          "edge_png": "output/samplebook/subpixel_lines_edge_hard.png",
+          "actual_rgba": [
+            96,
+            0,
+            0,
+            255
+          ],
+          "expected_rgba": [
+            96,
+            0,
+            0,
+            255
+          ],
+          "color_max_err": 0,
+          "color_pass": true,
+          "why": "y=99.625 的 0.75 线，第 99 行覆盖 0.375"
+        },
+        {
+          "pixel": [
+            50,
+            150
+          ],
+          "measured_hard": 0.4000000059604645,
+          "expected_hard": 0.4,
+          "coverage_pass": true,
+          "edge_png": "output/samplebook/subpixel_lines_edge_hard.png",
+          "actual_rgba": [
+            102,
+            0,
+            0,
+            255
+          ],
+          "expected_rgba": [
+            102,
+            0,
+            0,
+            255
+          ],
+          "color_max_err": 0,
+          "color_pass": true,
+          "why": "y=150 起 0.4 高，第 150 行覆盖 0.4"
+        },
+        {
+          "pixel": [
+            59,
+            170
+          ],
+          "measured_hard": 0.17499999701976776,
+          "expected_hard": 0.175,
+          "coverage_pass": true,
+          "edge_png": "output/samplebook/subpixel_lines_edge_hard.png",
+          "actual_rgba": [
+            45,
+            0,
+            0,
+            255
+          ],
+          "expected_rgba": [
+            45,
+            0,
+            0,
+            255
+          ],
+          "color_max_err": 0,
+          "color_pass": true,
+          "why": "x=59.825 的 0.35 竖线，第 59 列覆盖 0.175"
+        }
+      ],
+      "files": {
+        "hard_u16": "output/samplebook/subpixel_lines_hard_u16.png",
+        "feather_u16": "output/samplebook/subpixel_lines_feather_u16.png",
+        "edge_hard": "output/samplebook/subpixel_lines_edge_hard.png",
+        "edge_feather": "output/samplebook/subpixel_lines_edge_feather.png"
+      },
+      "pass": true,
+      "canvas": [
+        240,
+        200
+      ]
+    },
+    "repeat_spokes": {
+      "id": "repeat_spokes",
+      "title": "重复变换：十二辐条",
+      "checks": [],
+      "hard_mass": {
+        "measured": 3888.0,
+        "expected": 3888.0,
+        "abs_diff": 0.0,
+        "tol_abs": 3.0,
+        "pass": true,
+        "basis": "12 * 6 * 54，旋转保面积且辐条互不重叠"
+      },
+      "rois": {
+        "empty_hub": {
+          "max": 0.0,
+          "mean": 0.0,
+          "sum": 0.0,
+          "pixels": 256,
+          "pass": true,
+          "convention": {
+            "max_at_most": 1e-06,
+            "basis": "内半径 26 以内无辐条"
+          },
+          "xyxy": [
+            112,
+            92,
+            128,
+            108
+          ]
+        }
+      },
+      "files": {
+        "hard_u16": "output/samplebook/repeat_spokes_hard_u16.png",
+        "feather_u16": "output/samplebook/repeat_spokes_feather_u16.png",
+        "edge_hard": "output/samplebook/repeat_spokes_edge_hard.png",
+        "edge_feather": "output/samplebook/repeat_spokes_edge_feather.png"
+      },
+      "pass": true,
+      "canvas": [
+        240,
+        200
+      ]
+    },
+    "intersect_narrow": {
+      "id": "intersect_narrow",
+      "title": "相交轮廓与窄羽化",
+      "checks": [],
+      "hard_mass": {
+        "measured": 2571.400390625,
+        "expected": 2571.4,
+        "abs_diff": 0.00039062499990905053,
+        "tol_abs": 0.2,
+        "pass": true,
+        "basis": "交集宽 120.35-92.4=27.95，高 150.25-58.25=92.0"
+      },
+      "edge_pixels": [
+        {
+          "pixel": [
+            92,
+            100
+          ],
+          "measured_hard": 0.6000000238418579,
+          "expected_hard": 0.6,
+          "coverage_pass": true,
+          "edge_png": "output/samplebook/intersect_narrow_edge_hard.png",
+          "actual_rgba": [
+            153,
+            0,
+            0,
+            255
+          ],
+          "expected_rgba": [
+            153,
+            0,
+            0,
+            255
+          ],
+          "color_max_err": 0,
+          "color_pass": true,
+          "why": "左边界 x=92.4，第 92 列覆盖 0.6"
+        },
+        {
+          "pixel": [
+            120,
+            100
+          ],
+          "measured_hard": 0.3499999940395355,
+          "expected_hard": 0.35,
+          "coverage_pass": true,
+          "edge_png": "output/samplebook/intersect_narrow_edge_hard.png",
+          "actual_rgba": [
+            89,
+            0,
+            0,
+            255
+          ],
+          "expected_rgba": [
+            89,
+            0,
+            0,
+            255
+          ],
+          "color_max_err": 0,
+          "color_pass": true,
+          "why": "右边界 x=120.35，第 120 列覆盖 0.35"
+        },
+        {
+          "pixel": [
+            105,
+            58
+          ],
+          "measured_hard": 0.75,
+          "expected_hard": 0.75,
+          "coverage_pass": true,
+          "edge_png": "output/samplebook/intersect_narrow_edge_hard.png",
+          "actual_rgba": [
+            191,
+            0,
+            0,
+            255
+          ],
+          "expected_rgba": [
+            191,
+            0,
+            0,
+            255
+          ],
+          "color_max_err": 0,
+          "color_pass": true,
+          "why": "上边界 y=58.25，第 58 行覆盖 0.75"
+        },
+        {
+          "pixel": [
+            105,
+            150
+          ],
+          "measured_hard": 0.25,
+          "expected_hard": 0.25,
+          "coverage_pass": true,
+          "edge_png": "output/samplebook/intersect_narrow_edge_hard.png",
+          "actual_rgba": [
+            64,
+            0,
+            0,
+            255
+          ],
+          "expected_rgba": [
+            64,
+            0,
+            0,
+            255
+          ],
+          "color_max_err": 0,
+          "color_pass": true,
+          "why": "下边界 y=150.25，第 150 行覆盖 0.25"
+        }
+      ],
+      "feather_checks": {
+        "radius": 0.8,
+        "center_value": 1.0,
+        "center_pass": true,
+        "ghost_roi": {
+          "max": 0.0,
+          "mean": 0.0,
+          "sum": 0.0,
+          "pixels": 40
+        },
+        "ghost_pass": true,
+        "ghost_threshold": 0.02,
+        "pass": true
+      },
+      "files": {
+        "hard_u16": "output/samplebook/intersect_narrow_hard_u16.png",
+        "feather_u16": "output/samplebook/intersect_narrow_feather_u16.png",
+        "edge_hard": "output/samplebook/intersect_narrow_edge_hard.png",
+        "edge_feather": "output/samplebook/intersect_narrow_edge_feather.png"
+      },
+      "pass": true,
+      "canvas": [
+        240,
+        200
+      ]
+    }
+  },
+  "resolution_lab": {
+    "preview_factor": 4,
+    "visibility_tau": 0.05,
+    "preview_filament": {
+      "max": 0.03999999910593033,
+      "mean": 0.03999999538064003,
+      "sum": 1.4399998188018799,
+      "pixels": 36
+    },
+    "preview_disappears": true,
+    "preview_png": "output/samplebook/hole_filament_preview_60x50.png",
+    "output_scale": 4,
+    "output_filament_peak_min": 0.5,
+    "output_filament": {
+      "max": 0.6399999856948853,
+      "mean": 0.15999998152256012,
+      "sum": 368.63995361328125,
+      "pixels": 2304
+    },
+    "output_peak_recovers": true,
+    "mass_ratio": 15.99966343413276,
+    "mass_ratio_expected": 16,
+    "mass_ratio_pass": true,
+    "output_hole": {
+      "max": 0.0,
+      "mean": 0.0,
+      "sum": 0.0,
+      "pixels": 10240
+    },
+    "output_hole_empty": true,
+    "master4x_png": "output/samplebook/hole_filament_master_4x_mask_u16.png",
+    "pass": true
+  },
+  "plates": {
+    "plate_a_png": "output/samplebook/plates/plate_A_vermilion_ink.png",
+    "plate_b_png": "output/samplebook/plates/plate_B_indigo_ink.png",
+    "proof_png": "output/samplebook/plates/proof_overprint.png",
+    "readback_from_actual_file": {
+      "filament": {
+        "max": 0.16078431904315948,
+        "mean": 0.16078431904315948,
+        "sum": 23.152942657470703,
+        "pixels": 144
+      },
+      "hole": {
+        "max": 0.0,
+        "mean": 0.0,
+        "sum": 0.0,
+        "pixels": 640
+      },
+      "filament_peak_min": 0.1,
+      "hole_max_tol": 0.02,
+      "filament_present": true,
+      "hole_empty": true,
+      "pass": true
+    },
+    "plate_4x_png": "output/samplebook/plates/plate_A_vermilion_ink_4x.png",
+    "readback_4x_from_actual_file": {
+      "filament": {
+        "max": 0.6392157077789307,
+        "mean": 0.15980392694473267,
+        "sum": 368.188232421875,
+        "pixels": 2304
+      },
+      "hole": {
+        "max": 0.0,
+        "mean": 0.0,
+        "sum": 0.0,
+        "pixels": 10240
+      },
+      "filament_peak_min": 0.5,
+      "hole_max_tol": 0.02,
+      "filament_present": true,
+      "hole_empty": true,
+      "pass": true
+    },
+    "bad_control_png": "output/samplebook/plates/control_bad_filled_plate_A.png",
+    "bad_control_report": {
+      "filament": {
+        "max": 1.0,
+        "mean": 1.0,
+        "sum": 144.0,
+        "pixels": 144
+      },
+      "hole": {
+        "max": 1.0,
+        "mean": 1.0,
+        "sum": 640.0,
+        "pixels": 640
+      },
+      "filament_peak_min": 0.1,
+      "hole_max_tol": 0.02,
+      "filament_present": true,
+      "hole_empty": false,
+      "pass": false
+    },
+    "bad_control_detected": true,
+    "pass": true
+  },
+  "legacy": {
+    "entries": [
+      {
+        "id": "old_page_hole7",
+        "source_json": "selection_samples/legacy/old_page_hole7.json",
+        "source_png": "selection_samples/legacy/old_page_hole7_mask.png",
+        "source_png_exists": true,
+        "source_png_sha256_16": "b4c60166892cb09d",
+        "mask_shape": [
+          50,
+          60
+        ],
+        "unrecoverable_rois_lowres": [
+          [
+            21,
+            24,
+            39,
+            26
+          ]
+        ],
+        "roi_ink_from_actual_png": {
+          "max": 0.0,
+          "mean": 0.0,
+          "sum": 0.0,
+          "pixels": 36
+        },
+        "roi_ink_max_tol": 1e-06,
+        "roi_empty_in_legacy": true,
+        "companion_vector_preview_max": 0.03999999910593033,
+        "companion_proves_lost_feature": true,
+        "marked_png": "output/samplebook/legacy/old_page_hole7_marked.png",
+        "pass": true
+      }
+    ],
+    "pass": true
+  },
+  "painting": {
+    "project_json": "selection_samples/projects/hole_still_life.json",
+    "composite_rgba": "output/samplebook/paintings/hole_still_life_composite_rgba.png",
+    "checker_png": "output/samplebook/paintings/hole_still_life_checker.png",
+    "layers": [
+      {
+        "name": "wash"
+      },
+      {
+        "name": "ink_line"
+      }
+    ],
+    "outside_selection_alpha_max": 0.0,
+    "outside_alpha_pass": true,
+    "hole_alpha": {
+      "max": 0.0,
+      "mean": 0.0,
+      "sum": 0.0,
+      "pixels": 640
+    },
+    "hole_alpha_pass": true,
+    "semi_transparent_pixels": 5729,
+    "semi_transparent_min": 200,
+    "semi_transparent_pass": true,
+    "pass": true
+  },
+  "semantics": {
+    "A_mass": 3360.0,
+    "B_mass": 2496.0,
+    "ops": {
+      "union": {
+        "mass": 4624.0,
+        "png": "output/samplebook/semantics/combine_union.png"
+      },
+      "subtract": {
+        "mass": 2128.0,
+        "png": "output/samplebook/semantics/combine_subtract.png"
+      },
+      "intersect": {
+        "mass": 1232.0,
+        "png": "output/samplebook/semantics/combine_intersect.png"
+      },
+      "xor": {
+        "mass": 3392.0,
+        "png": "output/samplebook/semantics/combine_xor.png"
+      }
+    },
+    "union_plus_intersect_eq_A_plus_B_maxerr": 0.0,
+    "xor_eq_union_minus_intersect_maxerr": 0.0,
+    "pass": true
+  },
+  "all_pass": true
+}

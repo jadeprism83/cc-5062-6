@@ -97,15 +97,18 @@ def paint_brush(canvas: Canvas, layer: Layer,
                 points: Sequence[Tuple[float, float]], radius: float,
                 color_rgb: Tuple[float, float, float],
                 selection: np.ndarray, spacing: float = 0.25,
-                hardness: float = 0.5) -> None:
-    """沿点序列绘制笔刷，实际写入 = 笔刷覆盖 × 选区覆盖。
+                hardness: float = 0.5, opacity: float = 1.0) -> None:
+    """沿点序列绘制笔刷，实际写入 = 笔刷覆盖 × 选区覆盖 × opacity。
 
     selection 为与画布同尺寸的 float 覆盖率（可含羽化）。颜色写入
-    预乘 RGBA 层，并与层上已有内容做 over 合成。
+    预乘 RGBA 层，并与层上已有内容做 over 合成。opacity<1 产生半透明
+    笔迹（水彩罩染），不改变选区裁决：选区外 alpha 仍严格为 0。
     """
     h, w = canvas.height, canvas.width
     if selection.shape != (h, w):
         raise ValueError("selection coverage must match canvas size")
+    if not 0.0 <= opacity <= 1.0:
+        raise ValueError("opacity must lie in [0, 1]")
     pts = list(points)
     if not pts:
         return
@@ -120,12 +123,12 @@ def paint_brush(canvas: Canvas, layer: Layer,
                            prev[1] + (p[1] - prev[1]) * t))
     r, g, b = color_rgb
     # 整条笔画在覆盖率域累加（并集：1-∏(1-c)），保证触点重叠处不超过 1；
-    # 之后统一乘以选区覆盖，使最终写入严格受选区裁决，软边按比例写入。
+    # 之后统一乘以选区覆盖与不透明度，使最终写入严格受选区裁决，软边按比例写入。
     stroke_cov = np.zeros((h, w), dtype=np.float64)
     for cx, cy in stamps:
         cov = brush_stamp_coverage(h, w, (cx, cy), radius, hardness).astype(np.float64)
         stroke_cov = stroke_cov + cov - stroke_cov * cov
-    write = (stroke_cov * selection).astype(np.float64)
+    write = (stroke_cov * selection * opacity).astype(np.float64)
     src = np.zeros((h, w, 4), dtype=np.float64)
     src[..., 0] = write * r
     src[..., 1] = write * g
