@@ -1,0 +1,3 @@
+numpy>=1.24
+pillow>=9.0
+# tkinter 为系统包（python3-tk），不在 pip 依赖中；浏览器窗口无需 tkinter。

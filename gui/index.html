@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>精细选区绘画窗口</title>
+<style>
+  :root { --bd:#3a4150; --panel:#1d222c; --bg:#12151b; --fg:#e6e9ef;
+          --accent:#5aa2ff; --err:#ff6b6b; --ok:#57d18b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+         background:var(--bg); color:var(--fg); font-size:13px; }
+  header { padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--bd);
+           display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  header h1 { font-size:15px; margin:0; font-weight:600; }
+  .layout { display:grid; grid-template-columns:260px 1fr; min-height:calc(100vh - 50px); }
+  .panel { background:var(--panel); border-right:1px solid var(--bd); padding:12px;
+           overflow:auto; }
+  .stage { padding:14px; overflow:auto; }
+  fieldset { border:1px solid var(--bd); border-radius:8px; margin:0 0 12px; padding:10px; }
+  legend { padding:0 6px; color:var(--accent); font-weight:600; }
+  label { display:block; margin:7px 0 3px; color:#aeb6c4; }
+  input, select, button { width:100%; padding:6px 8px; border-radius:6px;
+           border:1px solid var(--bd); background:#0f131a; color:var(--fg); }
+  button { cursor:pointer; margin-top:8px; }
+  button.primary { background:var(--accent); color:#08111f; font-weight:600; border:none; }
+  button:hover { filter:brightness(1.1); }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .shape-item { display:flex; gap:6px; align-items:center; padding:6px; border:1px solid var(--bd);
+                border-radius:6px; margin-bottom:6px; background:#171c25; }
+  .shape-item select, .shape-item button { width:auto; margin:0; }
+  .shape-item .meta { flex:1; font-size:11px; color:#9aa3b2; }
+  #errorbar { display:none; background:#3a1d22; border:1px solid var(--err); color:#ffc4c4;
+              padding:8px 12px; border-radius:6px; margin-bottom:10px; white-space:pre-wrap; }
+  #status { color:var(--ok); font-size:12px; min-height:16px; margin-top:6px; }
+  .canvaswrap { position:relative; display:inline-block; line-height:0;
+                background:
+                  conic-gradient(#2a303c 0 25%, #222833 0 50%, #2a303c 0 75%, #222833 0)
+                  0/24px 24px; border:1px solid var(--bd); border-radius:8px; }
+  canvas { display:block; image-rendering:auto; }
+  #drawLayer { position:absolute; left:0; top:0; cursor:crosshair; }
+  .tabs { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+  .tabs button { width:auto; padding:5px 12px; }
+  .tabs button.active { background:var(--accent); color:#08111f; }
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; }
+  .card { background:var(--panel); border:1px solid var(--bd); border-radius:8px; padding:10px; }
+  .card h3 { margin:0 0 8px; font-size:13px; color:var(--accent); }
+  .card img, .card canvas { max-width:100%; height:auto; border-radius:4px; }
+  .stat { font-family:ui-monospace,monospace; font-size:11px; color:#aeb6c4; line-height:1.6; }
+  .hint { color:#8791a0; font-size:11px; line-height:1.5; margin-top:6px; }
+  .pill { display:inline-block; background:#263042; border-radius:10px; padding:1px 8px;
+          font-size:11px; margin-left:6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>精细选区绘画窗口 <span class="pill">亚像素覆盖率内核</span></h1>
+  <span style="color:#8791a0">画布坐标固定 · 显示缩放不改变羽化宽度 · 全分辨率导出</span>
+</header>
+<div class="layout">
+  <div class="panel">
+    <div id="errorbar"></div>
+
+    <fieldset>
+      <legend>1. 画布坐标域</legend>
+      <div class="row">
+        <div><label>宽 W（图像像素）</label><input id="cw" type="number" value="240" min="8" max="2000"></div>
+        <div><label>高 H（图像像素）</label><input id="ch" type="number" value="200" min="8" max="2000"></div>
+      </div>
+      <label>显示缩放（仅预览，不参与掩码）</label>
+      <input id="zoom" type="range" min="0.5" max="3" step="0.1" value="1.5">
+    </fieldset>
+
+    <fieldset>
+      <legend>2. 拖选轮廓</legend>
+      <label>形状</label>
+      <select id="shapeKind">
+        <option value="circle">圆（贝塞尔曲线）</option>
+        <option value="rectangle">矩形</option>
+        <option value="slanted">斜边（平行四边形）</option>
+        <option value="slit">极细缝（&lt;1px）</option>
+      </select>
+      <label>与现有选区的组合</label>
+      <select id="shapeOp">
+        <option value="union">合并 union</option>
+        <option value="subtract">相减 subtract</option>
+        <option value="intersect">相交 intersect</option>
+        <option value="xor">异或 xor</option>
+      </select>
+      <button id="addShape">＋ 添加该形状（也可在画布上拖拽）</button>
+      <div id="shapeList" style="margin-top:8px"></div>
+      <button id="clearShapes">清空轮廓</button>
+      <div class="hint">在右侧画布按住左键拖拽即可按当前形状与组合方式拖选区域。</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>3. 羽化（画布像素半径）</legend>
+      <input id="feather" type="range" min="0" max="20" step="0.25" value="4">
+      <div>半径 = <b id="featherVal">4.00</b> px（界面缩放不改变此宽度）</div>
+      <button class="primary" id="renderBtn">应用并渲染选区</button>
+      <div id="status"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>4. 笔刷（写入受选区限制）</legend>
+      <div class="row">
+        <div><label>笔刷半径</label><input id="brush" type="number" value="12" min="1"></div>
+        <div><label>硬度</label><input id="hardness" type="number" value="0.6" min="0" max="1" step="0.05"></div>
+      </div>
+      <label>颜色 RGB（0..1）</label>
+      <div class="row">
+        <input id="cr" type="number" value="0.9" min="0" max="1" step="0.05">
+        <input id="cg" type="number" value="0.25" min="0" max="1" step="0.05">
+      </div>
+      <input id="cb" type="number" value="0.15" min="0" max="1" step="0.05" style="margin-top:6px">
+      <button id="paintBtn">在选区内绘制当前笔画</button>
+      <button id="cutBtn">跨图层剪切（对比两种所有权）</button>
+      <button id="tileBtn">瓦片一致性校验</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>5. 导出（全分辨率）</legend>
+      <button id="exportMask">下载 16-bit 羽化掩码 PNG</button>
+      <button id="exportHard">下载 16-bit 硬边掩码 PNG</button>
+      <button id="exportPaint">下载绘画 RGBA PNG</button>
+      <div class="hint">掩码按画布原始 W×H 导出，与显示分辨率无关。</div>
+    </fieldset>
+  </div>
+
+  <div class="stage">
+    <div class="tabs">
+      <button data-tab="select" class="active">选区结果</button>
+      <button data-tab="edge">亚像素边缘</button>
+      <button data-tab="paint">绘画/棋盘底</button>
+      <button data-tab="cut">剪切所有权对比</button>
+    </div>
+
+    <div id="tab-select" class="tabpane">
+      <div class="canvaswrap" id="wrap">
+        <canvas id="baseCanvas"></canvas>
+        <canvas id="drawLayer"></canvas>
+      </div>
+      <div class="stat" id="selectStats"></div>
+    </div>
+
+    <div id="tab-edge" class="tabpane" style="display:none">
+      <div class="grid2">
+        <div class="card"><h3>羽化覆盖率（灰度，0..1 连续值）</h3><img id="imgFeather" alt="feather"></div>
+        <div class="card"><h3>仅软边像素（0 &lt; c &lt; 1，红色）</h3><img id="imgEdge" alt="edge"></div>
+      </div>
+      <div class="stat" id="edgeStats"></div>
+    </div>
+
+    <div id="tab-paint" class="tabpane" style="display:none">
+      <div class="grid2">
+        <div class="card"><h3>真实绘画 RGBA（透明背景）</h3><img id="imgPaint" alt="paint"></div>
+        <div class="card"><h3>棋盘底：由实际透明度裁决</h3><img id="imgChecker" alt="checker"></div>
+      </div>
+      <div class="stat" id="paintStats"></div>
+    </div>
+
+    <div id="tab-cut" class="tabpane" style="display:none">
+      <div class="grid2">
+        <div class="card"><h3>先合并再提取 merge_first</h3><img id="imgCut1" alt="cut1"></div>
+        <div class="card"><h3>分别提取再合成 cut_each</h3><img id="imgCut2" alt="cut2"></div>
+        <div class="card"><h3>所有权差异（×8 放大）</h3><img id="imgDiff" alt="diff"></div>
+      </div>
+      <div class="stat" id="cutStats"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let shapes = [];
+let current = { hard: null, feather: null };
+let stroke = [];
+let dragging = false;
+let dragStart = null;
+
+function showError(msg) {
+  const bar = $("errorbar");
+  if (msg) { bar.textContent = "内核错误：" + msg; bar.style.display = "block"; }
+  else { bar.style.display = "none"; }
+}
+function setStatus(t) { $("status").textContent = t; }
+
+function dims() { return { width: +$("cw").value, height: +$("ch").value }; }
+function zoom() { return +$("zoom").value; }
+function payload(extra = {}) {
+  return { ...dims(), feather: +$("feather").value, shapes, ...extra };
+}
+
+async function postJSON(route, body) {
+  const r = await fetch(route, { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await r.json();
+  if (!data.ok) { showError(data.error); throw new Error(data.error); }
+  showError(null);
+  return data;
+}
+
+function syncCanvases() {
+  const { width, height } = dims();
+  const z = zoom();
+  for (const id of ["baseCanvas", "drawLayer"]) {
+    const c = $(id);
+    c.width = width; c.height = height;
+    c.style.width = (width * z) + "px";
+    c.style.height = (height * z) + "px";
+  }
+  const ctx = $("baseCanvas").getContext("2d");
+  ctx.clearRect(0, 0, width, height);
+}
+
+function renderShapeList() {
+  const el = $("shapeList");
+  el.innerHTML = "";
+  shapes.forEach((s, i) => {
+    const div = document.createElement("div");
+    div.className = "shape-item";
+    div.innerHTML = `<span class="meta">#${i + 1} ${s.shape} (${s.x.toFixed(1)},${s.y.toFixed(1)}) ${s.w.toFixed(1)}×${s.h.toFixed(1)}</span>`;
+    const op = document.createElement("select");
+    ["union", "subtract", "intersect", "xor"].forEach(v => {
+      const o = document.createElement("option"); o.value = v; o.textContent = v;
+      if (s.op === v) o.selected = true; op.appendChild(o);
+    });
+    op.onchange = () => { s.op = op.value; renderSelection(); };
+    const del = document.createElement("button");
+    del.textContent = "✕"; del.onclick = () => { shapes.splice(i, 1); renderShapeList(); renderSelection(); };
+    div.appendChild(op); div.appendChild(del); el.appendChild(div);
+  });
+}
+
+async function renderSelection() {
+  if (!shapes.length) {
+    syncCanvases(); current = { hard: null, feather: null };
+    $("selectStats").textContent = "（尚无轮廓）"; return;
+  }
+  const data = await postJSON("/api/render", payload());
+  current.feather = data.feather_png; current.hard = data.hard_png;
+  const img = new Image();
+  img.onload = () => {
+    syncCanvases();
+    $("baseCanvas").getContext("2d").drawImage(img, 0, 0);
+  };
+  img.src = "data:image/png;base64," + data.feather_png;
+  $("imgFeather").src = "data:image/png;base64," + data.feather_png;
+  $("imgEdge").src = "data:image/png;base64," + data.edge_png;
+  const st = data.stats;
+  $("selectStats").innerHTML =
+    `硬边覆盖面积 Σc=${st.hard_sum.toFixed(2)} px² · 羽化后 Σc=${st.feather_sum.toFixed(2)} px²<br>` +
+    `完全内部像素=${st.fully_inside} · 亚像素软边像素(0&lt;c&lt;1)=${st.soft_pixels}`;
+  $("edgeStats").textContent =
+    `软边像素数=${st.soft_pixels}；这些值是连续覆盖率，未被阈值化，16-bit 导出保留全部层次。`;
+  setStatus("选区已更新（画布分辨率 " + dims().width + "×" + dims().height + "）");
+}
+
+function canvasPos(ev) {
+  const r = $("drawLayer").getBoundingClientRect();
+  return { x: (ev.clientX - r.left) / zoom(), y: (ev.clientY - r.top) / zoom() };
+}
+
+$("drawLayer").addEventListener("pointerdown", ev => {
+  dragging = true; dragStart = canvasPos(ev); stroke = [dragStart];
+});
+$("drawLayer").addEventListener("pointermove", ev => {
+  const p = canvasPos(ev);
+  if (dragging) {
+    stroke.push(p);
+    drawDragRect(dragStart, p);
+  } else {
+    drawHover(p);
+  }
+});
+window.addEventListener("pointerup", async ev => {
+  if (!dragging) return;
+  dragging = false;
+  const end = canvasPos(ev);
+  const x = Math.min(dragStart.x, end.x), y = Math.min(dragStart.y, end.y);
+  const w = Math.abs(end.x - dragStart.x), h = Math.abs(end.y - dragStart.y);
+  if (w < 1 || h < 1) { clearDrag(); return; }
+  shapes.push({ shape: $("shapeKind").value, op: $("shapeOp").value,
+                x, y, w, h });
+  renderShapeList();
+  await renderSelection();
+  clearDrag();
+});
+
+function drawDragRect(a, b) {
+  const ctx = $("drawLayer").getContext("2d");
+  clearDrag();
+  ctx.strokeStyle = "#5aa2ff"; ctx.lineWidth = 1 / zoom();
+  ctx.strokeRect(Math.min(a.x, b.x), Math.min(a.y, b.y),
+                 Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+}
+function drawHover(p) {
+  const ctx = $("drawLayer").getContext("2d");
+  clearDrag();
+  ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 1 / zoom();
+  ctx.strokeRect(p.x - 6, p.y - 6, 12, 12);
+}
+function clearDrag() {
+  const c = $("drawLayer");
+  c.getContext("2d").clearRect(0, 0, c.width, c.height);
+}
+
+$("addShape").onclick = () => {
+  const { width, height } = dims();
+  shapes.push({ shape: $("shapeKind").value, op: $("shapeOp").value,
+                x: width * 0.2, y: height * 0.2, w: width * 0.6, h: height * 0.6 });
+  renderShapeList(); renderSelection();
+};
+$("clearShapes").onclick = () => { shapes = []; renderShapeList(); renderSelection(); };
+$("feather").oninput = ev => { $("featherVal").textContent = (+ev.target.value).toFixed(2); };
+$("feather").onchange = renderSelection;
+$("renderBtn").onclick = renderSelection;
+$("zoom").onchange = syncCanvases;
+$("cw").onchange = () => { syncCanvases(); renderSelection(); };
+$("ch").onchange = () => { syncCanvases(); renderSelection(); };
+
+$("paintBtn").onclick = async () => {
+  if (!stroke.length) {
+    stroke = [];
+    const { width, height } = dims();
+    for (let i = 0; i <= 30; i++) {
+      const t = i / 30;
+      stroke.push([width * (0.2 + 0.6 * t),
+                   height * 0.5 + Math.sin(t * Math.PI * 2) * height * 0.12]);
+    }
+  }
+  const data = await postJSON("/api/paint", payload({
+    stroke, brush: +$("brush").value, hardness: +$("hardness").value,
+    color: [+$("cr").value, +$("cg").value, +$("cb").value],
+  }));
+  $("imgPaint").src = "data:image/png;base64," + data.paint_png;
+  $("imgChecker").src = "data:image/png;base64," + data.checker_png;
+  $("paintStats").textContent =
+    "选区外像素最大 alpha = " + data.outside_max.toExponential(2) +
+    "（必须为 0，证明笔刷写入严格受选区裁决）";
+  setStatus("绘画完成");
+};
+
+$("cutBtn").onclick = async () => {
+  const data = await postJSON("/api/cut", payload());
+  $("imgCut1").src = "data:image/png;base64," + data.merge_first_png;
+  $("imgCut2").src = "data:image/png;base64," + data.cut_each_png;
+  $("imgDiff").src = "data:image/png;base64," + data.diff_png;
+  $("cutStats").innerHTML =
+    "两种所有权语义最大差值 = <b>" + data.max_diff.toFixed(5) + "</b><br>" +
+    "原层留洞后残留 alpha 总和 = " + data.hole_alpha_sum.toFixed(2) +
+    "（洞由 1−c 裁决）";
+  setStatus("剪切对比完成");
+};
+
+$("tileBtn").onclick = async () => {
+  const data = await postJSON("/api/tiles", payload({ tile_h: 37, tile_w: 41 }));
+  setStatus("瓦片校验：硬边 maxdiff=" + data.tile_hard_maxdiff.toExponential(2) +
+            "，羽化 maxdiff=" + data.tile_feather_maxdiff.toExponential(2));
+};
+
+function download(b64, name) {
+  const a = document.createElement("a");
+  a.href = "data:image/png;base64," + b64; a.download = name; a.click();
+}
+$("exportMask").onclick = () => current.feather && download(current.feather, "selection_feather_16bit.png");
+$("exportHard").onclick = () => current.hard && download(current.hard, "selection_hard_16bit.png");
+$("exportPaint").onclick = () => {
+  const src = $("imgPaint").src;
+  if (src.startsWith("data:")) {
+    const a = document.createElement("a"); a.href = src; a.download = "paint_rgba.png"; a.click();
+  } else showError("请先绘制笔画再导出绘画");
+};
+
+document.querySelectorAll(".tabs button").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".tabpane").forEach(p => p.style.display = "none");
+    $( "tab-" + btn.dataset.tab).style.display = "block";
+  };
+});
+
+syncCanvases();
+renderSelection();
+</script>
+</body>
+</html>
